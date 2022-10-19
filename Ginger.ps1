@@ -43,7 +43,16 @@ function Main{
     foreach($x in $Tasks){
         TaskPrint $x
     }
-
+    foreach($x in $Jobs){
+        JobPrint $x
+    }
+    Write-Progress -Activity "Preparing Resources" -Status "Getting Temp Files"
+    $usertmp = Get-ChildItem $env:Temp -Recurse | ? Extension -in (".exe",".ps1",".vbs",".vbscript",".bat",".cmd",".msi")
+    $wintemp = Get-ChildItem "C:\Windows\Temp" -Recurse | ? Extension -in (".exe",".ps1",".vbs",".vbscript",".bat",".cmd",".msi")
+    Write-Progress -Completed True
+    write-host "<----- Temp File Enumeration ----->`n"
+    ExePrint $usertmp
+    ExePrint $wintemp
 }
 
 function ProcPrint($Process){
@@ -67,6 +76,14 @@ function ConnPrint($Conn){
 function TaskPrint($task){
     write-host "<-----"$Task.TaskName"----->`n"
     write-host "`tName:"$Task.TaskName"`n`tState:"$Task.State"`n`tURI:"$Task.URI"`n"
+}
+
+function JobPrint($job){
+    write-Host $job
+}
+
+function ExePrint($Item){
+    echo "`n"$Item"`n"
 }
 $global:ErrorActionPreference="SilentlyContinue"
 Main
