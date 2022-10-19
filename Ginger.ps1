@@ -83,7 +83,7 @@ function JobPrint($job){
 }
 
 function ExePrint($Item){
-    echo "`n"$Item"`n"
+    echo $Item
 }
 $global:ErrorActionPreference="SilentlyContinue"
 Main
