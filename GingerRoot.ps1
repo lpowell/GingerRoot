@@ -90,6 +90,10 @@ Code
 
 param($Verbose,$Report,[switch]$Help)
 
+# https://bazaar.abuse.ch/export/txt/md5/full/
+# unzip
+# use
+
 
 # DEFAULT SCANS
 function Default(){
@@ -100,31 +104,75 @@ function Default(){
     foreach($x in $Process){
         $a++
         write-Progress -Activity "Analyzing Process Executables" -Status "$a/$b"
-        if($x.ExecutablePath -notmatch "C\:\\Windows" -and $x.ExecutablePath -notmatch "C\:\\Program"){
+        if($x.ExecutablePath -notmatch "C\:\\Windows" <#-and $x.ExecutablePath -notmatch "C\:\\Program"#>){
             $Send+= $x
         }
     }
     Write-Progress -Completed True
     Report "Process" $Send
+    $Send =@()
+    $Service = Get-CimInstance CIM_Service
+    $a = 0
+    $b = $Service.Count
+    foreach($x in $Service){
+        $a++
+        Write-Progress -Activity "Analyzing Service Executables" -Status "$a/$b"
+        if($x.PathName -notmatch "C\:\\Windows" -and $x.Name -ne $null<#-and $x.ExecutablePath -notmatch "C\:\\Program"#>){
+            $Send += $x
+        }
+    }
+    Write-Progress -Completed True
+    Report "Service" $send
 }
 
 function Report($Stage, $ReportObject){
     if($Stage -eq "Process"){
-        Write-Host "Processes running from non-standard locations`n"
+        Write-Host "Processes running from non-system locations`n"
+        $out =@()
+        $connout =@()
         foreach($x in $ReportObject){
-            write-Host "Name:" $x.Name"`nPath:" $x.ExecutablePath"`n"
-            try{
-                if(Get-NetTCPConnection -OwningProcess $x.ProcessID){
-                    Write-Host "`tConnections"
-                    $Conn = Get-NetTCPConnection -OwningProcess $x.ProcessID
-                    foreach($y in $Conn){
-                        Write-Host "`n`t`tLocal Address:" $y.LocalAddress":"$y.LocalPort
-                        Write-Host "`t`tRemote Addres:" $y.RemoteAddress":"$y.RemotePort
+            if($x.ExecutablePath -notin $out){
+                write-Host "Name:" $x.Name"`nPath:" $x.ExecutablePath"`n"
+                try{
+                    if(Get-NetTCPConnection -OwningProcess $x.ProcessID){
+                        Write-Host "`tConnections"
+                        $Conn = Get-NetTCPConnection -OwningProcess $x.ProcessID
+                        foreach($y in $Conn){
+                            Write-Host "`n`t`tLocal Address:" $y.LocalAddress":"$y.LocalPort
+                            Write-Host "`t`tRemote Addres:" $y.RemoteAddress":"$y.RemotePort
+                        }
+                        write-host
                     }
-                    write-host
-                }
-            }catch{
+                }catch{
 
+                }
+            }elseif($x.ExecutablePath -in $out){
+                try{
+                    if(Get-NetTCPConnection -OwningProcess $x.ProcessID){
+                        if($conn -notin $connout){
+                            write-Host "Name:" $x.Name"`nPath:" $x.ExecutablePath"`n"
+                            Write-Host "`tConnections"
+                            $Conn = Get-NetTCPConnection -OwningProcess $x.ProcessID
+                            foreach($y in $Conn){
+                                Write-Host "`n`t`tLocal Address:" $y.LocalAddress":"$y.LocalPort
+                                Write-Host "`t`tRemote Addres:" $y.RemoteAddress":"$y.RemotePort
+                            }
+                            write-host
+                        }
+                    }
+                }catch{}
+            }
+            $out += $x.ExecutablePath
+            $connout += $conn
+        }
+    }
+    if($Stage -eq "Service"){
+        Write-Host "Service Executables not in System Paths`n"
+        $Out =@()
+        foreach($x in $ReportObject){
+            if($x.PathName -ne $out){
+                Write-Host "Name:"$x.Name"`nPathName:"$x.PathName"`nState:"$x.State"`n"
+                $Out += $x.PathName
             }
         }
     }
